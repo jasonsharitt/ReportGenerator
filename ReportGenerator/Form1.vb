@@ -963,7 +963,7 @@ Public Class Form1
         Dim runningprocess As Process = Process.Start("C:\Repos\dls\tags\1.0.4\Plus.LoggingService\bin\Debug\Plus.LoggingService.exe")
 
         Do Until runningprocess.HasExited
-            Threading.Thread.Sleep(1000)
+            Threading.Thread.Sleep(10000)
         Loop
 
         Return True
