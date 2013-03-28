@@ -7,6 +7,10 @@ Imports System.Data
 Imports System.Data.OleDb
 Imports System.IO.StreamWriter
 Imports System.IO.Path
+Imports System.ComponentModel
+
+
+
 Public Class Form1
     Dim fd As OpenFileDialog = New OpenFileDialog()
     Dim fd2 As OpenFileDialog = New OpenFileDialog()
@@ -43,10 +47,14 @@ Public Class Form1
     Dim rawfilelist As New List(Of String)
     Dim datedictionary As New Dictionary(Of String, List(Of String))
     Dim runningposfiles As Integer = 0
+    Dim sequenceregion As String
+    Dim distance As String
+    Dim frm As Form2 = New Form2()
+    Dim filenamelist As New List(Of String)
     '*****************************************************************************************************
     'BIG TO DO: THREAD ENTIRE APPLICATION SO IT REMAINS INTERACTIVE WHILE REPORTS ARE BEING PROCESSED!!!!!
     '*****************************************************************************************************
-    
+
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
         'This subroutine clears the file list views, then presents an OpenFileDialog from which to choose files for
         'processing. Files are restricted to the type required by the reports selected for processing.
@@ -78,6 +86,7 @@ Public Class Form1
                 posFilename = fd.FileName
                 For Each posfilename As String In fd.FileNames
                     ListView1.Items.Add(Path.GetFileName(posfilename))
+                    filenamelist.Add(posfilename)
                 Next
             End If
             If posFilename = "" Then
@@ -103,51 +112,10 @@ Public Class Form1
         End If
     End Sub
 
-    Private Function buildprogressbar(ByVal h As Boolean)
-        'The progress bar function needs to be reworked.
-
-        'Set max to the number of files in queue to process + the SQL table creations needed for each file & report combo
-        '+ the actual reports that are run. 
-
-        If CheckBox1.Checked = True Then
-            poscount += 3
-        End If
-        If CheckBox2.Checked = True Then
-            poscount += 2
-        End If
-        If CheckBox3.Checked = True Then
-            poscount += 2
-        End If
-        If CheckBox4.Checked = True Then
-            poscount += 3
-        End If
-        If CheckBox5.Checked = True Then
-            rawcount += 2
-        End If
-        If CheckBox6.Checked = True Then
-            poscount += 2
-        End If
-        If CheckBox7.Checked = True Then
-            rawcount += 3
-        End If
-        For Each f In filelist
-            runningposfiles += 1
-        Next
-        ProgressBar1.Minimum = 0
-
-        If filelist.Count > 1 Then
-            ProgressBar1.Maximum = 1 + (runningposfiles * poscount) + rawcount
-        ElseIf filelist.Count < 2 Then
-            ProgressBar1.Maximum = runningposfiles * poscount + rawcount
-        ElseIf filelist.Count > 1 AndAlso processpositionfiles = True Then
-            ProgressBar1.Maximum = 1 + (runningposfiles * poscount) + 1 + rawcount
-        ElseIf filelist.Count < 2 AndAlso processpositionfiles = True Then
-            ProgressBar1.Maximum = runningposfiles * poscount + 1 + rawcount
-        End If
-
-        Return True
-
-    End Function
+    Public Sub New()
+        InitializeComponent()
+        BackgroundWorker1.WorkerSupportsCancellation = True
+    End Sub
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
         'This subroutine displays a FolderBrowserDialog that allows the user to select where the .csv report files
@@ -225,7 +193,7 @@ Public Class Form1
 
         'For RepeatNonRepeat (the Contiguous Track report) and RepeatsPerXMinute reports, this function
         'keeps track of the files it creates and passes that information to another function that combines them into one full day report. 
-       
+
 
         Dim str As String = saveFileLocation + Path.GetFileName(filename) & reportname + ".csv"
         Dim streamwriter As New System.IO.StreamWriter(str)
@@ -258,7 +226,6 @@ Public Class Form1
             strrowvalue.Clear()
         Next
         streamwriter.Close()
-        ProgressBar1.Increment(1)
         If CheckBox1.Checked Then
             If str.Contains("Repeats_NonRepeats") Then
                 If Not filedictionary.ContainsKey(CTdate) Then
@@ -300,10 +267,6 @@ Public Class Form1
         For Each Me.posFilename In fd.FileNames
             filereader = My.Computer.FileSystem.OpenTextFileReader(Me.posFilename)
             Dim filename = Path.GetFileName(Me.posFilename)
-            filenamelabel.Text = filename
-            filenamelabel.Refresh()
-            reportnamelabel.Text = "Discovering Dates"
-            reportnamelabel.Refresh()
             Do Until filereader.EndOfStream()
                 line = filereader.ReadLine()
                 Dim linesplit = line.Split(New [Char]() {","})
@@ -325,7 +288,6 @@ Public Class Form1
                 End If
             Loop
         Next
-        ProgressBar1.Increment(1)
         Return True
     End Function
 
@@ -356,8 +318,6 @@ Public Class Form1
         Dim line As String
         If x = True Then
             For Each strKey In datedictionary.Keys()
-                filenamelabel.Text = Path.GetFileName(strKey)
-                filenamelabel.Refresh()
                 savefilename = saveFileLocation + "\" + strKey + "FullDay.csv"
                 filemaker = New StreamWriter(savefilename, False)
                 Dim keylist = datedictionary(strKey)
@@ -385,14 +345,11 @@ Public Class Form1
                 filemaker.Close()
                 filereader.Close()
                 filelist.Add(savefilename)
-                ProgressBar1.Increment(1)
             Next
             filereader.Close()
             filemaker.Close()
         ElseIf x = False Then
             For Each strKey In datedictionary.Keys()
-                filenamelabel.Text = Path.GetFileName(strKey)
-                filenamelabel.Refresh()
                 savefilename = saveFileLocation + strKey + " 0AM to 4AM.csv"
                 savefilename2 = saveFileLocation + strKey + " 4AM to 8AM.csv"
                 savefilename3 = saveFileLocation + strKey + " 8AM to 12PM.csv"
@@ -491,7 +448,6 @@ Public Class Form1
                 ElseIf m.Length < 1 Then
                     My.Computer.FileSystem.DeleteFile(savefilename6)
                 End If
-                ProgressBar1.Increment(1)
             Next
             filereader.Close()
             filemaker.Close()
@@ -508,8 +464,8 @@ Public Class Form1
         'This function takes all the RawFileReports generated by the program and combines their results into one file.
         Dim linesplit() As String
         Dim line As String
-        reportnamelabel.Text = "Combining RAW File Reports"
-        reportnamelabel.Refresh()
+        frm.lblcurrenttask.Text = "Combining RAW File Reports"
+        frm.Refresh()
         Dim FullRawTable As DataTable = New DataTable("FullRaw")
         Dim tagid As DataColumn = New DataColumn()
         tagid.DataType = System.Type.GetType("System.String")
@@ -643,7 +599,7 @@ Public Class Form1
 
         'Reminder: Position-based reports need to have the double quotes taken out from the position files before 
         '          tables can be created.
-       
+
         Dim sql2 As New SqlCommand()
         Dim connectionstring As String = "Data Source=(local)\SQLExpress,34524;Initial Catalog=Analysis;Integrated Security=True;Connect Timeout=60"
         Dim connection As New SqlConnection(connectionstring)
@@ -654,10 +610,14 @@ Public Class Form1
                 .CommandType = CommandType.StoredProcedure
                 If cmdtxt.Contains("Position") Then
                     .Parameters.Add("@positionfilepath", SqlDbType.NVarChar, 4000).Value = psnfile
+                    frm.lblcurrenttask.Text = "Creating Position Table"
+                    frm.Refresh()
                 ElseIf cmdtxt.Contains("RAW") Then
                     .Parameters.Add("@rawfilepath", SqlDbType.NVarChar, 4000).Value = psnfile
                     .Parameters.Add("@firstrow", SqlDbType.NVarChar, 5).Value = firrow
                     .Parameters.Add("@formatfile", SqlDbType.NVarChar, 4000).Value = ffile
+                    frm.lblcurrenttask.Text = "Creating RAW Table"
+                    frm.Refresh()
                 End If
                 .Connection = connection
                 .Connection.Open()
@@ -729,8 +689,8 @@ Public Class Form1
 
         Dim line As String
         Dim linesplit() As String
-        reportnamelabel.Text = "Processing Full Day Results"
-        reportnamelabel.Refresh()
+        frm.lblcurrenttask.Text = "Processing Full Day Results"
+        frm.Refresh()
         Dim FullDayTable As DataTable = New DataTable("FullDay")
         Dim assetid As DataColumn = New DataColumn()
         assetid.DataType = System.Type.GetType("System.String")
@@ -939,8 +899,9 @@ Public Class Form1
         'TO DO #2: Work with this code to find out why it is stopping before all positions have been written out to 
         '          zip files. It's a pain to have to manually extract the data from MySQL tables.
 
-        reportnamelabel.Text = "Running the Logging Service"
-        reportnamelabel.Refresh()
+        frm.Visible = True
+        frm.lblcurrenttask.Text = "Running the Logging Service"
+        frm.Refresh()
         '*************Ensure appsettings variable is set to correct file location to read the config file***************
         Dim appsettings() As String = File.ReadAllLines("C:\Repos\dls\tags\1.0.4\Plus.LoggingService\bin\Debug\config\appSettings.config")
         appsettings(7) = "  <add key=" + """TrackerDataSourceFile""" + " value=" + """" + rawfile + """" + "/>"
@@ -972,7 +933,7 @@ Public Class Form1
 
     End Function
 
-    Private Sub Button3_Click(sender As Object, e As EventArgs) Handles Button3.Click
+    Private Sub Button3_Click(sender As Object, e As System.EventArgs) Handles Button3.Click
         'This function passes the SQL Stored Procedure commands to CreateTables and SQLCommand functions.
         'The command passed is based on the report chosen, obviously.
         'Before any command is executed, the position or RAW data needs to be loaded up into a table in SQL.
@@ -984,221 +945,218 @@ Public Class Form1
         'TO DO: Combine the reports complete message with the bad tag message (assets > 20% repeats) and contigual
         'track messages. Make it scrollable. Maybe have tabs that contain each type of data.
 
-        Dim distance As String
-        Dim sequenceregion As String
-        If saveFileLocation <> "" Then
-
-            If fd2.FileNames.Count > 1 AndAlso CheckBox8.Checked = False Then
-                If MsgBox("Do you want to combine the results into one file?", vbQuestion + vbYesNo) = vbYes Then
-                    combinereports = True
-                End If
-                If CheckBox6.Checked = True Then
-                    sequenceregion = InputBox("Client location number. Type 1 for USA, or 2 for other.", "Region Entry", , 250, 75)
-                    If sequenceregion = "" Then
-                        sequenceregion = "1"
-                    End If
+        If fd2.FileNames.Count > 1 AndAlso CheckBox8.Checked = False Then
+            If MsgBox("Do you want to combine the results into one file?", vbQuestion + vbYesNo) = vbYes Then
+                combinereports = True
+            End If
+            If CheckBox6.Checked = True Then
+                sequenceregion = InputBox("Client location number. Type 1 for USA, or 2 for other.", "Region Entry", , 250, 75)
+                If sequenceregion = "" Then
+                    sequenceregion = "1"
                 End If
             End If
+        End If
+        If posFilename <> "" Then
+            If MsgBox("Do position files need to be reworked?", vbQuestion + vbYesNo) = vbNo Then
+                processpositionfiles = False
+                For Each posFilename As String In fd.FileNames
+                    filelist.Add(posFilename)
+                Next
+            End If
+        End If
 
-            If posFilename <> "" Then
-                If MsgBox("Do position files need to be reworked?", vbQuestion + vbYesNo) = vbNo Then
-                    processpositionfiles = False
-                    For Each posFilename As String In fd.FileNames
-                        filelist.Add(posFilename)
-                    Next
+        If saveFileLocation <> "" Then
+            If processpositionfiles = True Then
+                If MsgBox("Do you want to run the chosen reports over a 24 hour period of data? Default is 4 hour periods." & vbCrLf & "WARNING: Using 24-hour files for reports 1,4, or 5 can result in extremely long processing times!", vbQuestion + vbYesNo) = vbYes Then
+                    reportduration24 = True
                 End If
+            End If
+            If CheckBox2.Checked = True Then
+                interval = InputBox("Input time in minutes", "Time Entry", , 250, 75)
+            End If
+            If CheckBox3.Checked = True Then
+                distance = InputBox("Input Distance in Meters", "Distance Entry", , 250, 75)
+            End If
+        End If
 
-                If processpositionfiles = True Then
-                    If MsgBox("Do you want to run the chosen reports over a 24 hour period of data? Default is 4 hour periods." & vbCrLf & "WARNING: Using 24-hour files for reports 1,4, or 5 can result in extremely long processing times!", vbQuestion + vbYesNo) = vbYes Then
-                        reportduration24 = True
-                    End If
-                End If
+        frm.Visible = True
+        frm.lbltotalfilecount.Text = fd.FileNames.Count.ToString
+        frm.ProgressBar1.Maximum = fd.FileNames.Count
 
-                If CheckBox2.Checked = True Then
-                    interval = InputBox("Input time in minutes", "Time Entry", , 250, 75)
+        If processpositionfiles = True Then
+            Dim dates As New DiskoverDates()
+            datedictionary = dates.DiscoverDates(True, filenamelist)
+            ' Dim tablemaker As Boolean = DiscoverDates(posFilename)
+            If reportduration24 = True Then
+                frm.lblcurrenttask.Text = "Creating 24-hour Position file"
+                frm.lblcurrentfilename.Text = Path.GetFileName(posFilename)
+                frm.Refresh()
+                Dim pos As New PositionFileKreator()
+                pos.CreatePositionFiles(True, datedictionary, saveFileLocation)
+                'Dim report24 As Boolean = CreatePositionFiles(True)
+            ElseIf reportduration24 = False Then
+                frm.lblcurrenttask.Text = "Creating 4-hour position files"
+                frm.lblcurrentfilename.Text = Path.GetFileName(posFilename)
+                frm.Refresh()
+                Dim pos As New PositionFileKreator()
+                pos.CreatePositionFiles(False, datedictionary, saveFileLocation)
+                ' Dim report4 As Boolean = CreatePositionFiles(False)
+            End If
+        End If
+        Dim count As Integer = 1
+        For Each g In filelist
+            frm.lblcurrentfilenumber.Text = CStr(count)
+            frm.lblcurrentfilename.Text = Path.GetFileName(g)
+            frm.Refresh()
+            Try
+                Dim tbl As New TableKreator()
+                frm.lblcurrenttask.Text = "Creating Position Table"
+                frm.Refresh()
+                tbl.CreateTables("PositionDataInsertion", g, "", "")
+                ' Dim tablebuilder As Boolean = CreateTables("PositionDataInsertion", g, "", "")
+            Catch ex As Exception
+                MsgBox(ex.ToString)
+            End Try
+            If CheckBox1.Checked = True Or CheckBox4.Checked = True Or CheckBox7.Checked = True Then
+                Try
+                    frm.lblcurrenttask.Text = "Creating Temp Table"
+                    frm.Refresh()
+                    Dim tbl As New TableKreator()
+                    tbl.CreateTables("TempTableCreate", "", "", "")
+                    ' Dim tablebuilder As Boolean = CreateTables("TempTableCreate", "", "", "")
+                Catch ex As Exception
+                    MsgBox(ex.ToString)
+                End Try
+            End If
+            If CheckBox1.Checked = True Then
+                frm.lblcurrenttask.Text = "Processing Report #1"
+                frm.Refresh()
+                Dim rrr As New SQLExecution()
+                Dim eee As New ReportWriter()
+                rrr.SQLCommander("Repeats_NonRepeats", "", "", "")
+                '   Dim reportrun As Boolean = SQLCommand("Repeats_NonRepeats", "", "", "")
+                eee.WriteCSV(g.Substring(0, g.Length - 4), "Repeats_NonRepeats", saveFileLocation, filedictionary, filedictionary2, rawfilelist)
+                ' Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "Repeats_NonRepeats")
+            End If
+            If CheckBox2.Checked = True Then
+                frm.lblcurrenttask.Text = "Processing Report #2"
+                frm.Refresh()
+                If interval = "" Then
+                    MsgBox("You must enter an interval length in minutes")
+                ElseIf interval <> "" Then
+                    Dim reportrun As Boolean = SQLCommand("RepeatsPerXMinutes", interval, "", "")
+                    Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "Repeats_Per" + interval + "Minutes")
                 End If
-                If CheckBox3.Checked = True Then
-                    distance = InputBox("Input Distance in Meters", "Distance Entry", , 250, 75)
+            End If
+            If CheckBox3.Checked = True Then
+                frm.lblcurrenttask.Text = "Processing Report #3"
+                frm.Refresh()
+                If distance = "" Then
+                    MsgBox("Error: Distance not entered")
+                ElseIf distance <> "" Then
+                    Dim reportrun As Boolean = SQLCommand("CoordinateJumpCount", "", distance, "")
+                    Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "CoordinateJumpCount")
                 End If
-
-                If processpositionfiles = True Then
-                    Dim tablemaker As Boolean = DiscoverDates(posFilename)
-                    If reportduration24 = True Then
-                        reportnamelabel.Text = "Creating 24-hour Position file"
-                        reportnamelabel.Refresh()
-                        Dim report24 As Boolean = CreatePositionFiles(True)
-                    ElseIf reportduration24 = False Then
-                        reportnamelabel.Text = "Creating 4-hour position files"
-                        reportnamelabel.Refresh()
-                        Dim report4 As Boolean = CreatePositionFiles(False)
-                    End If
-                    ProgressBar1.Increment(1)
+            End If
+            If CheckBox4.Checked Then
+                frm.lblcurrenttask.Text = "Processing Report #4"
+                frm.Refresh()
+                Dim reportrun As Boolean = SQLCommand("RepeatedIntervals", "", "", "")
+                Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "RepeatedIntervals")
+            End If
+            If CheckBox7.Checked = True Then
+                frm.lblcurrenttask.Text = "Processing Report #5"
+                frm.Refresh()
+                Dim reportrun As Boolean = SQLCommand("RepeatCoordinateJumpAnalysis", "", "", "")
+                Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "RepeatedJumpAnalysis")
+            End If
+            count += 1
+            frm.ProgressBar1.Increment(1)
+        Next
+        If rawFilename <> "" Then
+            Dim rawfilefirstrow As String
+            Dim formatfile As String
+            If CheckBox5.Checked = True Or CheckBox6.Checked = True Then
+                rawfilefirstrow = InputBox("Row number in the file that the reader data begins on. Default row is 404,", "Row Number Entry", , 250, 75)
+                formatfile = InputBox("Location of format file used to correctly align the data for table creation.", "Format File Entry", , 250, 75)
+                If rawfilefirstrow = "" Then
+                    rawfilefirstrow = "404"
                 End If
-
-                Dim makethebar As Boolean = buildprogressbar(True)
-                For Each g In filelist
-                    filenamelabel.Text = Path.GetFileName(g)
-                    filenamelabel.Refresh()
+                If formatfile = "" Then
+                    formatfile = "C:\Users\jsharitt\Desktop\ForJason\Trial3\RawDataBulkInsertConfig.txt"
+                End If
+            End If
+            For Each Me.rawFilename In fd2.FileNames
+                frm.lblcurrentfilename.Text = Path.GetFileName(Me.rawFilename)
+                frm.Refresh()
+                If CheckBox6.Checked = True Or CheckBox5.Checked = True Then
                     Try
-                        reportnamelabel.Text = "Creating Position Table"
-                        reportnamelabel.Refresh()
-                        Dim tablebuilder As Boolean = CreateTables("PositionDataInsertion", g, "", "")
-                        ProgressBar1.Increment(1)
+                        frm.lblcurrenttask.Text = "Creating Raw Table"
+                        frm.Refresh()
+                        Dim tablebuilder As Boolean = CreateTables("RAWDataInsertion", rawFilename, rawfilefirstrow, formatfile)
                     Catch ex As Exception
                         MsgBox(ex.ToString)
                     End Try
-                    If CheckBox1.Checked = True Or CheckBox4.Checked = True Or CheckBox7.Checked = True Then
-                        Try
-                            reportnamelabel.Text = "Creating Temp Table"
-                            reportnamelabel.Refresh()
-                            Dim tablebuilder As Boolean = CreateTables("TempTableCreate", "", "", "")
-                            ProgressBar1.Increment(1)
-                        Catch ex As Exception
-                            MsgBox(ex.ToString)
-                        End Try
-                    End If
-                    If CheckBox1.Checked = True Then
-                        reportnamelabel.Text = "Processing Report #1"
-                        reportnamelabel.Refresh()
-                        Dim reportrun As Boolean = SQLCommand("Repeats_NonRepeats", "", "", "")
-                        ProgressBar1.Increment(1)
-                        Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "Repeats_NonRepeats")
-                        ProgressBar1.Increment(1)
-                    End If
-                    If CheckBox2.Checked = True Then
-                        reportnamelabel.Text = "Processing Report #2"
-                        reportnamelabel.Refresh()
-                        If interval = "" Then
-                            MsgBox("You must enter an interval length in minutes")
-                        ElseIf interval <> "" Then
-                            Dim reportrun As Boolean = SQLCommand("RepeatsPerXMinutes", interval, "", "")
-                            Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "Repeats_Per" + interval + "Minutes")
+                End If
+                If CheckBox5.Checked = True Then
+                    frm.lblcurrenttask.Text = "Processing Report #6"
+                    frm.Refresh()
+                    Dim reportrun As Boolean = SQLCommand("ReaderAnalysis", "", "", "")
+                    Dim reportcomplete As String = WriteCSV(rawFilename.Substring(0, rawFilename.Length - 4), "ReaderAnalysis")
+                End If
+                If CheckBox6.Checked = True Then
+                    frm.lblcurrenttask.Text = "Processing Report #7"
+                    frm.Refresh()
+                    Dim reportrun As Boolean = SQLCommand("DroppedPackets", "", "", "")
+                    Dim reportcomplete As String = WriteCSV(rawFilename.Substring(0, rawFilename.Length - 4), "DroppedPackets")
+                End If
+                If CheckBox8.Checked = True Then
+                    If RadioButton1.Checked = False AndAlso RadioButton2.Checked = False AndAlso RadioButton3.Checked = False AndAlso RadioButton4.Checked = False Then
+                        MsgBox("No Config Selected", , "ERROR")
+                    Else
+                        Dim createfiles As Boolean = LoggingService(rawFilename)
+                        If createfiles = False Then
+                            MsgBox("Logging Service did not start successfully!")
                         End If
-                        ProgressBar1.Increment(1)
-                    End If
-                    If CheckBox3.Checked = True Then
-                        reportnamelabel.Text = "Processing Report #3"
-                        reportnamelabel.Refresh()
-                        If distance = "" Then
-                            MsgBox("Error: Distance not entered")
-                        ElseIf distance <> "" Then
-                            Dim reportrun As Boolean = SQLCommand("CoordinateJumpCount", "", distance, "")
-                            Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "CoordinateJumpCount")
-                        End If
-                        ProgressBar1.Increment(1)
-                    End If
-                    If CheckBox4.Checked Then
-                        reportnamelabel.Text = "Processing Report #4"
-                        reportnamelabel.Refresh()
-                        Dim reportrun As Boolean = SQLCommand("RepeatedIntervals", "", "", "")
-                        Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "RepeatedIntervals")
-                        ProgressBar1.Increment(1)
-                    End If
-                    If CheckBox7.Checked = True Then
-                        reportnamelabel.Text = "Processing Report #5"
-                        reportnamelabel.Refresh()
-                        Dim reportrun As Boolean = SQLCommand("RepeatCoordinateJumpAnalysis", "", "", "")
-                        Dim reportcomplete As String = WriteCSV(g.Substring(0, g.Length - 4), "RepeatedJumpAnalysis")
-                        ProgressBar1.Increment(1)
-                    End If
-                Next
-            End If
-            If rawFilename <> "" Then
-                Dim rawfilefirstrow As String
-                Dim formatfile As String
-                If CheckBox5.Checked = True Or CheckBox6.Checked = True Then
-                    rawfilefirstrow = InputBox("Row number in the file that the reader data begins on. Default row is 404,", "Row Number Entry", , 250, 75)
-                    formatfile = InputBox("Location of format file used to correctly align the data for table creation.", "Format File Entry", , 250, 75)
-                    If rawfilefirstrow = "" Then
-                        rawfilefirstrow = "404"
-                    End If
-                    If formatfile = "" Then
-                        formatfile = "C:\Users\jsharitt\Desktop\ForJason\Trial3\RawDataBulkInsertConfig.txt"
                     End If
                 End If
-                For Each Me.rawFilename In fd2.FileNames
-                    filenamelabel.Text = Path.GetFileName(Me.rawFilename)
-                    filenamelabel.Refresh()
-                    If CheckBox6.Checked = True Or CheckBox5.Checked = True Then
-                        Try
-                            reportnamelabel.Text = "Creating Raw Table"
-                            reportnamelabel.Refresh()
-                            Dim tablebuilder As Boolean = CreateTables("RAWDataInsertion", rawFilename, rawfilefirstrow, formatfile)
-                        Catch ex As Exception
-                            MsgBox(ex.ToString)
-                        End Try
-                    End If
-                    If CheckBox5.Checked = True Then
-                        reportnamelabel.Text = "Processing Report #6"
-                        reportnamelabel.Refresh()
-                        Dim reportrun As Boolean = SQLCommand("ReaderAnalysis", "", "", "")
-                        Dim reportcomplete As String = WriteCSV(rawFilename.Substring(0, rawFilename.Length - 4), "ReaderAnalysis")
-                        ProgressBar1.Increment(1)
-                    End If
-                    If CheckBox6.Checked = True Then
-                        reportnamelabel.Text = "Processing Report #7"
-                        reportnamelabel.Refresh()
-                        Dim reportrun As Boolean = SQLCommand("DroppedPackets", "", "", "")
-                        Dim reportcomplete As String = WriteCSV(rawFilename.Substring(0, rawFilename.Length - 4), "DroppedPackets")
-                        ProgressBar1.Increment(1)
-                    End If
-                    If CheckBox8.Checked = True Then
-                        If RadioButton1.Checked = False AndAlso RadioButton2.Checked = False AndAlso RadioButton3.Checked = False AndAlso RadioButton4.Checked = False Then
-                            MsgBox("No Config Selected", , "ERROR")
-                        Else
-                            Dim createfiles As Boolean = LoggingService(rawFilename)
-                            If createfiles = False Then
-                                MsgBox("Logging Service did not start successfully!")
-                            End If
-                        End If
-                        ProgressBar1.Increment(1)
-                    End If
-                Next
-            End If
-            If combinereports = True Then
-                Dim doreports As Boolean = CombineRawFileReports(True)
-            End If
-            If CheckBox1.Checked = True And filelist.Count > 1 Then
-                Dim finalreport As Boolean = TotalCTReport("x")
-                ProgressBar1.Increment(1)
-            End If
-
-
-            If tagerrordictionary.Count > 0 Then
-                Dim errorlist As New StringBuilder()
-                For Each assetid In tagerrordictionary.Keys()
-                    Dim keylist = tagerrordictionary(assetid)
-                    errorlist.AppendLine("Asset ID " + assetid + " returned " + CStr(keylist * 100) + "% repeated positions")
-                Next
-                My.Computer.Audio.PlaySystemSound(Media.SystemSounds.Asterisk)
-                MsgBox(errorlist.ToString(), , "ERRORS")
-            End If
-            If tagerrordictionary.Count < 1 AndAlso CheckBox1.Checked Then
-                MsgBox("There were no tags with more than 20% repeated positions", , "No Tag Errors Found")
-            End If
-            MsgBox("All Reports Complete", , "Reports Complete")
-            reportnamelabel.Text = "Reports Complete"
-            reportnamelabel.Refresh()
-            filenamelabel.Text = ""
-            filenamelabel.Refresh()
-            CheckBox1.Checked = False
-            CheckBox2.Checked = False
-            CheckBox3.Checked = False
-            CheckBox4.Checked = False
-            CheckBox5.Checked = False
-            CheckBox6.Checked = False
-            CheckBox7.Checked = False
-            CheckBox8.Checked = False
-            ProgressBar1.Value = 0
-            ListView1.Clear()
-            ListView2.Clear()
-            posFilename = ""
-            rawFilename = ""
-            filelist.Clear()
-        ElseIf saveFileLocation = "" Then
-            MsgBox("Save File Location not chosen")
+            Next
         End If
-
+        If combinereports = True Then
+            Dim doreports As Boolean = CombineRawFileReports(True)
+        End If
+        If CheckBox1.Checked = True And filelist.Count > 1 Then
+            Dim finalreport As Boolean = TotalCTReport("x")
+        End If
+        If tagerrordictionary.Count > 0 Then
+            Dim errorlist As New StringBuilder()
+            For Each assetid In tagerrordictionary.Keys()
+                Dim keylist = tagerrordictionary(assetid)
+                errorlist.AppendLine("Asset ID " + assetid + " returned " + CStr(keylist * 100) + "% repeated positions")
+            Next
+            My.Computer.Audio.PlaySystemSound(Media.SystemSounds.Asterisk)
+            MsgBox(errorlist.ToString(), , "ERRORS")
+        End If
+        If tagerrordictionary.Count < 1 AndAlso CheckBox1.Checked Then
+            MsgBox("There were no tags with more than 20% repeated positions", , "No Tag Errors Found")
+        End If
+        frm.lblcurrenttask.Text = "Reports Complete"
+        MsgBox("All Reports Complete", , "Reports Complete")
+        frm.Refresh()
+        CheckBox1.Checked = False
+        CheckBox2.Checked = False
+        CheckBox3.Checked = False
+        CheckBox4.Checked = False
+        CheckBox5.Checked = False
+        CheckBox6.Checked = False
+        CheckBox7.Checked = False
+        CheckBox8.Checked = False
+        ListView1.Clear()
+        ListView2.Clear()
+        posFilename = ""
+        rawFilename = ""
+        filelist.Clear()
+        frm.Visible = False
     End Sub
 
     Private Sub RadioButton4_CheckedChanged(sender As Object, e As EventArgs) Handles RadioButton4.CheckedChanged

@@ -38,7 +38,6 @@ Partial Class Form1
         Me.Button2 = New System.Windows.Forms.Button()
         Me.Button3 = New System.Windows.Forms.Button()
         Me.Label4 = New System.Windows.Forms.Label()
-        Me.ProgressBar1 = New System.Windows.Forms.ProgressBar()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.PictureBox1 = New System.Windows.Forms.PictureBox()
         Me.Label5 = New System.Windows.Forms.Label()
@@ -50,10 +49,6 @@ Partial Class Form1
         Me.Label10 = New System.Windows.Forms.Label()
         Me.Label11 = New System.Windows.Forms.Label()
         Me.Label12 = New System.Windows.Forms.Label()
-        Me.Label13 = New System.Windows.Forms.Label()
-        Me.filenamelabel = New System.Windows.Forms.Label()
-        Me.Label14 = New System.Windows.Forms.Label()
-        Me.reportnamelabel = New System.Windows.Forms.Label()
         Me.ListView2 = New System.Windows.Forms.ListView()
         Me.CheckBox8 = New System.Windows.Forms.CheckBox()
         Me.Label15 = New System.Windows.Forms.Label()
@@ -61,6 +56,7 @@ Partial Class Form1
         Me.RadioButton2 = New System.Windows.Forms.RadioButton()
         Me.RadioButton3 = New System.Windows.Forms.RadioButton()
         Me.RadioButton4 = New System.Windows.Forms.RadioButton()
+        Me.BackgroundWorker1 = New System.ComponentModel.BackgroundWorker()
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.PictureBox1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
@@ -213,19 +209,12 @@ Partial Class Form1
         Me.Label4.TabIndex = 15
         Me.Label4.Text = "STEP 4: Run Reports"
         '
-        'ProgressBar1
-        '
-        Me.ProgressBar1.Location = New System.Drawing.Point(6, 626)
-        Me.ProgressBar1.Name = "ProgressBar1"
-        Me.ProgressBar1.Size = New System.Drawing.Size(935, 23)
-        Me.ProgressBar1.TabIndex = 16
-        '
         'DataGridView1
         '
         Me.DataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
         Me.DataGridView1.Location = New System.Drawing.Point(340, 181)
         Me.DataGridView1.Name = "DataGridView1"
-        Me.DataGridView1.Size = New System.Drawing.Size(612, 404)
+        Me.DataGridView1.Size = New System.Drawing.Size(612, 430)
         Me.DataGridView1.TabIndex = 17
         '
         'PictureBox1
@@ -319,40 +308,6 @@ Partial Class Form1
         Me.Label12.TabIndex = 29
         Me.Label12.Text = "6."
         '
-        'Label13
-        '
-        Me.Label13.AutoSize = True
-        Me.Label13.Location = New System.Drawing.Point(535, 134)
-        Me.Label13.Name = "Label13"
-        Me.Label13.Size = New System.Drawing.Size(63, 13)
-        Me.Label13.TabIndex = 30
-        Me.Label13.Text = "Current File:"
-        '
-        'filenamelabel
-        '
-        Me.filenamelabel.AutoSize = True
-        Me.filenamelabel.Location = New System.Drawing.Point(638, 134)
-        Me.filenamelabel.Name = "filenamelabel"
-        Me.filenamelabel.Size = New System.Drawing.Size(0, 13)
-        Me.filenamelabel.TabIndex = 31
-        '
-        'Label14
-        '
-        Me.Label14.AutoSize = True
-        Me.Label14.Location = New System.Drawing.Point(535, 157)
-        Me.Label14.Name = "Label14"
-        Me.Label14.Size = New System.Drawing.Size(77, 13)
-        Me.Label14.TabIndex = 32
-        Me.Label14.Text = "Current Action:"
-        '
-        'reportnamelabel
-        '
-        Me.reportnamelabel.AutoSize = True
-        Me.reportnamelabel.Location = New System.Drawing.Point(638, 157)
-        Me.reportnamelabel.Name = "reportnamelabel"
-        Me.reportnamelabel.Size = New System.Drawing.Size(0, 13)
-        Me.reportnamelabel.TabIndex = 35
-        '
         'ListView2
         '
         Me.ListView2.Location = New System.Drawing.Point(16, 492)
@@ -429,7 +384,7 @@ Partial Class Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(964, 661)
+        Me.ClientSize = New System.Drawing.Size(964, 616)
         Me.Controls.Add(Me.RadioButton4)
         Me.Controls.Add(Me.RadioButton3)
         Me.Controls.Add(Me.RadioButton2)
@@ -437,10 +392,6 @@ Partial Class Form1
         Me.Controls.Add(Me.Label15)
         Me.Controls.Add(Me.CheckBox8)
         Me.Controls.Add(Me.ListView2)
-        Me.Controls.Add(Me.reportnamelabel)
-        Me.Controls.Add(Me.Label14)
-        Me.Controls.Add(Me.filenamelabel)
-        Me.Controls.Add(Me.Label13)
         Me.Controls.Add(Me.Label12)
         Me.Controls.Add(Me.Label11)
         Me.Controls.Add(Me.Label10)
@@ -452,7 +403,6 @@ Partial Class Form1
         Me.Controls.Add(Me.Label5)
         Me.Controls.Add(Me.PictureBox1)
         Me.Controls.Add(Me.DataGridView1)
-        Me.Controls.Add(Me.ProgressBar1)
         Me.Controls.Add(Me.Label4)
         Me.Controls.Add(Me.Button3)
         Me.Controls.Add(Me.Button2)
@@ -492,7 +442,6 @@ Partial Class Form1
     Friend WithEvents Button2 As System.Windows.Forms.Button
     Friend WithEvents Button3 As System.Windows.Forms.Button
     Friend WithEvents Label4 As System.Windows.Forms.Label
-    Friend WithEvents ProgressBar1 As System.Windows.Forms.ProgressBar
     Friend WithEvents DataGridView1 As System.Windows.Forms.DataGridView
     Friend WithEvents PictureBox1 As System.Windows.Forms.PictureBox
     Friend WithEvents Label5 As System.Windows.Forms.Label
@@ -504,10 +453,6 @@ Partial Class Form1
     Friend WithEvents Label10 As System.Windows.Forms.Label
     Friend WithEvents Label11 As System.Windows.Forms.Label
     Friend WithEvents Label12 As System.Windows.Forms.Label
-    Friend WithEvents Label13 As System.Windows.Forms.Label
-    Friend WithEvents filenamelabel As System.Windows.Forms.Label
-    Friend WithEvents Label14 As System.Windows.Forms.Label
-    Friend WithEvents reportnamelabel As System.Windows.Forms.Label
     Friend WithEvents ListView2 As System.Windows.Forms.ListView
     Friend WithEvents CheckBox8 As System.Windows.Forms.CheckBox
     Friend WithEvents Label15 As System.Windows.Forms.Label
@@ -515,5 +460,6 @@ Partial Class Form1
     Friend WithEvents RadioButton2 As System.Windows.Forms.RadioButton
     Friend WithEvents RadioButton3 As System.Windows.Forms.RadioButton
     Friend WithEvents RadioButton4 As System.Windows.Forms.RadioButton
+    Friend WithEvents BackgroundWorker1 As System.ComponentModel.BackgroundWorker
 
 End Class
